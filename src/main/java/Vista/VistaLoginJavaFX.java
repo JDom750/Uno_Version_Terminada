@@ -9,17 +9,31 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+/**
+ * Vista inicial de la aplicación (Login).
+ * <p>
+ * Su única responsabilidad es capturar el nombre del jugador y
+ * gestionar la transición hacia la Sala de Espera (Lobby).
+ * <p>
+ * No contiene lógica de juego, solo lógica de registro inicial.
+ */
 public class VistaLoginJavaFX {
 
+    // Referencia al controlador para comunicar el nombre ingresado.
     private ControladorUNO controlador;
 
     public VistaLoginJavaFX(ControladorUNO controlador) {
         this.controlador = controlador;
     }
 
+    /**
+     * Configura y muestra la ventana de Login.
+     * @param stage El escenario principal de JavaFX donde se montará la escena.
+     */
     public void start(Stage stage) {
         stage.setTitle("UNO - Ingreso");
 
+        // Layout vertical simple
         VBox root = new VBox(10);
         root.setPadding(new Insets(10));
 
@@ -27,47 +41,32 @@ public class VistaLoginJavaFX {
         TextField txtNombre = new TextField();
         Button btnEntrar = new Button("Entrar");
 
-//        btnEntrar.setOnAction(e -> {                          //Cambio esta parte hasta abajo por otra version del codigo
-//            String nombre = txtNombre.getText().trim();
-//            if (nombre.isEmpty()) return;
-//
-//            // 🔹 REGISTRA EL JUGADOR EN EL CONTROLADOR
-//            controlador.registrarJugador(nombre);
-//
-//
-//            // 🔹 PASA A LA VISTA PRINCIPAL
-//            VistaJavaFX vistaJuego = new VistaJavaFX(controlador);
-//            vistaJuego.start(stage);
-//        });
+        // Acción del botón "Entrar"
         btnEntrar.setOnAction(e -> {
             String nombre = txtNombre.getText().trim();
-            if (nombre.isEmpty()) return;
+            if (nombre.isEmpty()) return; // Validación básica
 
-            // 1. Guardar el nombre localmente PRIMERO
+            // 1. PASO CRÍTICO: Guardar la identidad Local.
+            // Antes de hablar con el servidor, le decimos al controlador: "Yo soy este usuario".
+            // Esto es necesario para que el controlador pueda validar turnos después.
             controlador.setNombreLocal(nombre);
 
-            // 2. Registrar la vista del juego ANTES de llamar al servidor
-            // (Esto soluciona el problema de perder el evento "INICIO_PARTIDA")
-            //VistaJavaFX vistaJuego = new VistaJavaFX(controlador);  //Comento esto y voy a levantar y crear la vista principal desde el controlador cuando se inicie la partida
-            // Nota: VistaJavaFX se registra a sí misma en el controlador en su constructor.
-
-            // 2. Crear la vista de ESPERA (NO la del juego todavía)
+            // 2. Preparamos la siguiente vista (Sala de Espera).
+            // Le pasamos el controlador para que siga escuchando eventos.
             VistaEsperaJavaFX vistaEspera = new VistaEsperaJavaFX(controlador);
 
-            // 3. Llamar al servidor
+            // 3. Comunicación con el Modelo Remoto (Servidor).
             try {
+                // Enviamos la petición de registro vía RMI.
+                // Si el servidor acepta, disparará el evento "JUGADOR_REGISTRADO".
                 controlador.registrarJugador(nombre);
-                // Si todo sale bien, cerramos login y mostramos juego (o espera)
-                //stage.close();
 
-                // Dependiendo de la lógica, podés abrir la vista de espera o directo la del juego.
-                // Como tu servidor arranca automático con 2 jugadores, quizás quieras ir directo
-                // o usar la lógica de VistaEspera si implementás una sala de espera real.
-                // Por ahora, asumamos tu flujo actual:
+                // 4. Transición de Pantalla.
+                // Si no hubo excepciones de red, cambiamos la escena actual por la del Lobby.
                 vistaEspera.mostrar(stage);
 
             } catch (Exception ex) {
-                ex.printStackTrace(); // Manejar error de conexión o nombre duplicado
+                ex.printStackTrace(); // Manejo de errores de conexión (ej. Servidor caído)
             }
         });
 

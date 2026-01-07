@@ -12,38 +12,51 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import java.util.List;
 
+/**
+ * Vista de Consola "Falsa" (Simulada con JavaFX).
+ * <p>
+ * Provee una interfaz de texto retro (tipo terminal) para jugar UNO mediante comandos escritos.
+ * Implementa {@link VistaObserver} para reaccionar a los eventos del juego.
+ * <p>
+ * Diferencia con una consola real (System.out):
+ * - No bloquea el hilo principal al esperar input (usa eventos de JavaFX).
+ * - Permite actualizaciones asíncronas del servidor sin "romper" la línea de entrada.
+ */
 public class VistaConsola implements VistaObserver {
 
     private final ControladorUNO controlador;
     private Stage stage;
 
-    // Componentes de la "Terminal"
-    private TextArea outputArea;
-    private TextField inputField;
+    // Componentes de la interfaz simulada
+    private TextArea outputArea; // Pantalla de salida (Logs del juego)
+    private TextField inputField; // Línea de comandos (Input del usuario)
 
-    // Estado local para saber qué esperar del input
+    // Máquina de estados interna para saber cómo interpretar lo que escribe el usuario.
     private enum EstadoConsola { LOGIN, ESPERA, JUEGO, ELIGIENDO_COLOR }
     private EstadoConsola estadoActual = EstadoConsola.LOGIN;
 
-    private boolean soyYo = false; // Para saber si es mi turno visualmente
+    private boolean soyYo = false; // Indicador visual de turno
 
     public VistaConsola(ControladorUNO controlador) {
         this.controlador = controlador;
+        // Nos registramos para escuchar al modelo
         controlador.registrarVista(this);
     }
 
+    /**
+     * Inicia la ventana de la terminal.
+     */
     public void start(Stage stage) {
         this.stage = stage;
         stage.setTitle("UNO - Terminal Mode");
 
-        // Configuración estilo "Hacker / Retro"
+        // Configuración visual estilo "Matrix / Hacker" (Fondo negro, letras verdes)
         outputArea = new TextArea();
-        outputArea.setEditable(false);
+        outputArea.setEditable(false); // El usuario no puede borrar el historial
         outputArea.setStyle("-fx-control-inner-background: black; -fx-text-fill: #00ff00; -fx-font-family: 'Consolas', 'Monospaced'; -fx-font-size: 14px;");
         outputArea.setWrapText(true);
 
@@ -51,7 +64,7 @@ public class VistaConsola implements VistaObserver {
         inputField.setStyle("-fx-background-color: #222; -fx-text-fill: #00ff00; -fx-font-family: 'Consolas', 'Monospaced'; -fx-font-size: 14px;");
         inputField.setPromptText("Escribí tu comando aquí...");
 
-        // Al dar Enter, procesar comando
+        // Evento: Al presionar ENTER, enviamos el comando al procesador
         inputField.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 procesarEntrada(inputField.getText());
@@ -59,6 +72,7 @@ public class VistaConsola implements VistaObserver {
             }
         });
 
+        // Layout simple: Salida al centro, Entrada abajo
         BorderPane layout = new BorderPane();
         layout.setCenter(outputArea);
         layout.setBottom(inputField);
@@ -74,17 +88,21 @@ public class VistaConsola implements VistaObserver {
         inputField.requestFocus();
     }
 
-    // ================= LÓGICA DE COMANDOS =================
+    // ================= LÓGICA DE COMANDOS (PARSER) =================
 
+    /**
+     * Interpreta el texto ingresado por el usuario según el estado actual.
+     */
     private void procesarEntrada(String texto) {
         String cmd = texto.trim();
         if (cmd.isEmpty()) return;
 
-        imprimir("> " + cmd); // Echo del comando
+        imprimir("> " + cmd); // Echo: mostramos lo que escribió el usuario
 
         try {
             switch (estadoActual) {
                 case LOGIN -> {
+                    // El primer comando es el nombre de usuario
                     controlador.setNombreLocal(cmd);
                     controlador.registrarJugador(cmd);
                     estadoActual = EstadoConsola.ESPERA;
@@ -92,20 +110,25 @@ public class VistaConsola implements VistaObserver {
                     imprimir(">>> Escribí 'START' para iniciar si hay suficientes jugadores.");
                 }
                 case ESPERA -> {
+                    // En el lobby, solo esperamos el comando de inicio
                     if (cmd.equalsIgnoreCase("START")) {
                         controlador.solicitarInicioPartida();
                     } else {
                         imprimir("Comando desconocido en espera. Usá 'START'.");
                     }
                 }
-                case JUEGO -> procesarComandoJuego(cmd);
-                case ELIGIENDO_COLOR -> procesarSeleccionColor(cmd);
+                case JUEGO -> procesarComandoJuego(cmd); // Comandos de partida (JUGAR, ROBAR)
+                case ELIGIENDO_COLOR -> procesarSeleccionColor(cmd); // Input específico tras comodín
             }
         } catch (Exception e) {
             imprimir("ERROR: " + e.getMessage());
         }
     }
 
+    /**
+     * Parsea los comandos principales del juego.
+     * Ejemplos: "JUGAR 0", "ROBAR", "PASAR".
+     */
     private void procesarComandoJuego(String cmd) {
         String[] partes = cmd.split(" ");
         String accion = partes[0].toUpperCase();
@@ -133,6 +156,9 @@ public class VistaConsola implements VistaObserver {
         }
     }
 
+    /**
+     * Parsea la elección de color.
+     */
     private void procesarSeleccionColor(String colorStr) {
         try {
             Color c = switch (colorStr.toUpperCase()) {
@@ -165,20 +191,19 @@ public class VistaConsola implements VistaObserver {
 
     // ================= ACTUALIZACIONES DEL SERVIDOR =================
 
+    /**
+     * Recibe la notificación de cambio del modelo y actualiza el texto en pantalla.
+     */
     @Override
     public void actualizar() {
         Platform.runLater(() -> {
             try {
                 if (!controlador.isPartidaEnCurso()) {
                     if (estadoActual == EstadoConsola.LOGIN) return; // Aún no entramos
-                    // Si estábamos esperando y arrancó, cambiamos estado
-                    if (estadoActual == EstadoConsola.ESPERA && controlador.getJugadores().size() >= 2) {
-                        // El servidor avisa inicio, pero chequeamos flag
-                    }
                     return;
                 }
 
-                // Si la partida arrancó y yo seguía en espera, paso a juego
+                // Transición automática de Espera a Juego
                 if (estadoActual == EstadoConsola.ESPERA) {
                     estadoActual = EstadoConsola.JUEGO;
                     imprimir("\n>>> ¡LA PARTIDA HA COMENZADO! <<<\n");
@@ -187,11 +212,14 @@ public class VistaConsola implements VistaObserver {
                 imprimirEstadoJuego();
 
             } catch (Exception e) {
-                // imprimir("Esperando sincronización...");
+                // Manejo de errores de conexión silencioso
             }
         });
     }
 
+    /**
+     * Imprime el estado actual de la mesa (Carta en el pozo, Color, Turno).
+     */
     private void imprimirEstadoJuego() {
         Jugador actual = controlador.obtenerJugadorActual();
         Carta ultima = controlador.obtenerUltimaCartaJugadas();
@@ -236,6 +264,9 @@ public class VistaConsola implements VistaObserver {
         Platform.runLater(() -> imprimir("\n************\n" + titulo + ": " + mensaje + "\n************\n"));
     }
 
+    /**
+     * Agrega texto al área de salida (Log).
+     */
     private void imprimir(String texto) {
         outputArea.appendText(texto + "\n");
     }

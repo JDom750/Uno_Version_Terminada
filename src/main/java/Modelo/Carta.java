@@ -16,7 +16,6 @@ public class Carta implements Serializable {
 
     public synchronized Color getColor() { return color; }
     public synchronized Numero getValor() { return valor; }
-//------------No se si dejar esto
     @Override
     public synchronized String toString() {
         return color + " " + valor;
