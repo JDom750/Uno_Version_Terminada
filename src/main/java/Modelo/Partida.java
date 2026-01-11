@@ -277,6 +277,43 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
     }
 
     /**
+     *Metodo para desconectar al jugador y avisar al server
+     */
+    @Override
+    public synchronized void desconectar(String nombreJugador) throws RemoteException {
+        // Buscamos y removemos al jugador por su nombre
+        jugadores.removeIf(j -> j.getNombre().equals(nombreJugador));
+
+        // Avisamos a los que quedan que alguien se fue
+        notificarEvento(new Evento("JUGADOR_DESCONECTADO", nombreJugador));
+
+        // Si la partida estaba en curso y quedaron menos de 2, la terminamos a la fuerza
+        if (partidaEnCurso && jugadores.size() < MIN_JUGADORES) {
+            partidaEnCurso = false;
+            notificarEvento(new Evento("FIN_PARTIDA", "Nadie (Falta de jugadores)"));
+        }
+    }
+
+    /**
+     * Usa este metodo para poder reiniciar la partida y jugar otra manteniendo los mismos jugadores
+     */
+
+    @Override
+    public synchronized void reiniciarPartida() throws RemoteException {
+        // Solo permitimos reiniciar si la partida terminó (por seguridad)
+        if (partidaEnCurso) {
+            throw new IllegalStateException("No se puede reiniciar una partida en curso.");
+        }
+
+        // VALIDACIÓN IMPORTANTE:
+        if (jugadores.size() < MIN_JUGADORES) {
+            throw new IllegalStateException("No hay suficientes jugadores para reiniciar.");
+        }
+        // Reutilizamos tu lógica existente que limpia manos y reparte
+        iniciarPartidaInterna();
+    }
+
+    /**
      * Método invocado tras elegir un color para un comodín (+4 o Cambio Color).
      * Aplica el efecto del +4 en este momento.
      */

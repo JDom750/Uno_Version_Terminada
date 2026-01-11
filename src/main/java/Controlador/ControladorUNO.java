@@ -129,6 +129,10 @@ public class ControladorUNO implements IControladorRemoto {
                     notificarMensaje("FIN DEL JUEGO", "¡Ha ganado " + ganador + "!");
                     notificarVistas(); // Mostramos la mesa final
                     break;
+                case "JUGADOR_DESCONECTADO":
+                    String seFue = (String) e.getDatos();
+                    notificarMensaje("Información", "El jugador " + seFue + " se ha desconectado.");
+                    break;
 
                 default:
                     // Para cualquier otro evento (Turno, Carta Jugada, Robar), refrescamos la UI
@@ -259,6 +263,32 @@ public class ControladorUNO implements IControladorRemoto {
             partida.iniciarJuego();
         } catch (RemoteException e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     *Uso el metodo para poder solicitar un reinicio de la partida desde la vista, manteniendo los mismo jugadores
+     */
+
+    public void solicitarReiniciarPartida() {
+        try {
+            partida.reiniciarPartida();
+        } catch (Exception e) {
+            notificarMensaje("Error", "No se pudo reiniciar: " + e.getMessage());
+        }
+    }
+
+    /**
+     *Meotodo para que el usuario pueda cerrar sesion
+     */
+
+    public void cerrarCesion() {
+        try {
+            if (nombreLocal != null) {
+                partida.desconectar(nombreLocal);
+            }
+        } catch (Exception e) {
+            // Si falla es porque ya no hay conexión, no importa
         }
     }
 

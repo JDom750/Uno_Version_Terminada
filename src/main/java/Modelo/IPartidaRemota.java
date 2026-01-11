@@ -22,5 +22,10 @@ public interface IPartidaRemota extends IObservableRemoto {
 
 
     void pasarTurno() throws RemoteException;
+
+    // En Modelo/IPartidaRemota.java ---> Lo usamos para poder reiniciar la partida y jugar otra con los mismo jugadores
+    void reiniciarPartida() throws RemoteException;
+    // Metodo para permitir cerrar la partida desde cualquier ventana y avisar al servidor
+    void desconectar(String nombreJugador) throws RemoteException;
 }
 

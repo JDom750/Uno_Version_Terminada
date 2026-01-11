@@ -355,16 +355,47 @@ public class VistaJavaFX implements VistaObserver {
     }
 
     /**
-     * Muestra alertas informativas (Ganador, Errores, UNO gritado).
+     * Muestra alertas informativas (Ganador, Errores, UNO gritado) y tambien permite reiniciar la partida con los mismo jugadores
      */
     @Override
     public void mostrarMensaje(String titulo, String mensaje) {
         Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Información");
-            alert.setHeaderText(titulo);
-            alert.setContentText(mensaje);
-            alert.show();
+            // Caso Especial: Si es el fin del juego, mostramos botones de acción
+            if (titulo.equals("FIN DEL JUEGO")) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Juego Terminado");
+                alert.setHeaderText(mensaje);
+                alert.setContentText("¿Qué quieren hacer ahora?");
+
+                ButtonType btnOtra = new ButtonType("Jugar Otra Vez");
+                ButtonType btnSalir = new ButtonType("Salir", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+                alert.getButtonTypes().setAll(btnOtra, btnSalir);
+
+                // Bloqueamos cierre con X para obligar a decidir
+                alert.getDialogPane().getScene().getWindow().setOnCloseRequest(e -> e.consume());
+
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == btnOtra) {
+                    // Llamamos al reinicio
+                    controlador.solicitarReiniciarPartida();
+                } else {
+                    // 1. AVISAR AL SERVIDOR QUE ME VOY
+                    controlador.cerrarCesion();
+
+                    // 2. CERRAR LOCALMENTE
+                    Platform.exit();
+                    System.exit(0);
+                }
+            }
+            else {
+                // Mensajes normales (UNO, Errores, etc.)
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Información");
+                alert.setHeaderText(titulo);
+                alert.setContentText(mensaje);
+                alert.show();
+            }
         });
     }
 
