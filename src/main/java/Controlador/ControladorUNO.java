@@ -358,4 +358,12 @@ public class ControladorUNO implements IControladorRemoto {
             throw new RuntimeException(e);
         }
     }
+    //Metodo para obtener el Top 5 gaandores
+    public List<String> getRankingTop5() {
+        try {
+            return partida.obtenerRanking();
+        } catch (RemoteException e) {
+            return List.of("Error al obtener ranking");
+        }
+    }
 }

@@ -362,10 +362,23 @@ public class VistaJavaFX implements VistaObserver {
         Platform.runLater(() -> {
             // Caso Especial: Si es el fin del juego, mostramos botones de acción
             if (titulo.equals("FIN DEL JUEGO")) {
+
+                // --- NUEVO: Pedir el ranking al controlador ---
+                List<String> top5 = controlador.getRankingTop5();
+                StringBuilder sb = new StringBuilder();
+
+                // Construimos el texto completo
+                sb.append("--- TOP 5 MEJORES JUGADORES ---\n");
+                for (String linea : top5) {
+                    sb.append(linea).append("\n");
+                }
+                sb.append("\n¿Qué quieren hacer ahora?"); // Agregamos la pregunta al final del texto
+                // ----------------------------------------------
+
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Juego Terminado");
-                alert.setHeaderText(mensaje);
-                alert.setContentText("¿Qué quieren hacer ahora?");
+                alert.setHeaderText(mensaje); // "¡Ha ganado [Nombre]!"
+                alert.setContentText(sb.toString()); // Mostramos Ranking + Pregunta
 
                 ButtonType btnOtra = new ButtonType("Jugar Otra Vez");
                 ButtonType btnSalir = new ButtonType("Salir", ButtonBar.ButtonData.CANCEL_CLOSE);

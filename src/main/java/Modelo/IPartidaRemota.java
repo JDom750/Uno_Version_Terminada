@@ -27,5 +27,8 @@ public interface IPartidaRemota extends IObservableRemoto {
     void reiniciarPartida() throws RemoteException;
     // Metodo para permitir cerrar la partida desde cualquier ventana y avisar al servidor
     void desconectar(String nombreJugador) throws RemoteException;
+
+    // Implemencation de la persistencai
+    List<String> obtenerRanking() throws RemoteException;
 }
 

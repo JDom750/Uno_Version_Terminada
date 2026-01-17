@@ -40,6 +40,9 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
     // Evita que un jugador pase el turno sin haber hecho nada (robar o jugar).
     private boolean haRobadoEnTurnoActual = false;
 
+    //Atributo para implementar persistencia
+    private final SerializadorRanking ranking;
+
     public Partida() throws RemoteException {
         super();
         this.mazo = new Mazo();
@@ -49,6 +52,7 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
         this.direccionNormal = true;
         this.colorActual = Color.SIN_COLOR;
         this.estadoEsperandoColor = false;
+        this.ranking = new SerializadorRanking();
     }
 
     @Override
@@ -390,6 +394,8 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
 
     private synchronized void finalizarPartida(Jugador jugadorGanador) throws RemoteException {
         partidaEnCurso = false;
+        // Persistencia
+        ranking.registrarVictoria(jugadorGanador.getNombre());
         notificarEvento(new Evento("FIN_PARTIDA", jugadorGanador.getNombre()));
     }
 
@@ -513,5 +519,10 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    }
+    //Implementacion del metodo para la peristencia, se agrega el atributo, se lo inicializa y se registra al finalizar partida. Con este metodo solo se consulta
+    @Override
+    public List<String> obtenerRanking() throws RemoteException {
+        return ranking.getTop5();
     }
 }
