@@ -1,0 +1,133 @@
+@startuml
+' Settings
+skinparam backgroundColor #EEE
+
+' Abstract Classes & Interfaces
+abstract class ObservableRemoto {
+    + notificarObservadores()
+}
+interface IControladorRemoto {
+    + setModeloRemoto()
+    + actualizar()
+}
+interface VistaObserver {
+    + actualizar()
+    + mostrarMensaje()
+}
+interface IPartidaRemota {
+    + iniciarPartida()
+    + jugarCarta()
+    + robarCartaDelMazo()
+    + pasarTurno()
+    + getJugadorActual()
+    + getUltimaCartaJugadas()
+    + getColorActual()
+    + isPartidaEnCurso()
+    + getJugadores()
+}
+
+' Model Classes
+class Partida extends ObservableRemoto implements IPartidaRemota {
+    - mazo : Mazo
+    - jugadores : List<Jugador>
+    - turnoActual : int
+    - colorActual : Color
+    - haRobadoEnTurnoActual : boolean
+    + jugarCarta()
+    + robarCartaDelMazo()
+    + pasarTurno()
+    + robarCartasSiguientes()
+    + iniciarPartidaInterna()
+}
+class Jugador {
+    - nombre : String
+    - cartas : List<Carta>
+    + jugarCarta()
+    + tomarCarta()
+    + vaciarMano()
+}
+class Carta {
+    - color : Color
+    - valor : Numero
+}
+enum Color {
+    ROJO
+    AZUL
+    VERDE
+    AMARILLO
+    SIN_COLOR
+}
+enum Numero {
+    CERO
+    UNO
+    ...
+    MASCUATRO
+}
+class Mazo {
+    - mazo : Stack<Carta>
+    + robarCarta()
+    + descartar()
+}
+class Evento {
+    - tipo : String
+    - datos : Object
+}
+
+' Controller Class
+class ControladorUNO implements IControladorRemoto {
+    - partida : IPartidaRemota
+    - vistas : List<VistaObserver>
+    - nombreLocal : String
+    + jugarCarta()
+    + robarCarta()
+    + actualizar()
+    + registrarJugador()
+    + setNombreLocal()
+}
+
+' View Classes
+abstract class AbstractVistaFX implements VistaObserver{
+    + actualizar()
+    + mostrarMensaje()
+}
+class VistaJavaFX extends AbstractVistaFX{
+    + start()
+    - accionJugarCarta()
+    - actualizarPilaDescartes()
+}
+class VistaEsperaJavaFX extends AbstractVistaFX {
+    + mostrar()
+    + agregarJugador()
+    + cerrar()
+}
+class VistaLoginJavaFX extends AbstractVistaFX {
+    + start()
+}
+class VistaConsola extends AbstractVistaFX {
+    + start()
+    - procesarEntrada()
+    - imprimirEstadoJuego()
+}
+
+' Relationships
+Partida -- Mazo : usa
+Partida "1" -- "*" Jugador : tiene
+Jugador "1" -- "*" Carta : tiene
+Carta -- Color
+Carta -- Numero
+
+ControladorUNO -- IPartidaRemota : usa
+ControladorUNO -- VistaObserver : notifica
+ControladorUNO -- Jugador : getJugadorLocal
+
+VistaJavaFX -- ControladorUNO : usa
+VistaEsperaJavaFX -- ControladorUNO : usa
+VistaLoginJavaFX -- ControladorUNO : usa
+VistaConsola -- ControladorUNO : usa
+
+note top of Partida: Clase central\ncon la lógica del juego
+note top of ControladorUNO: Adaptador entre\nVista y Modelo
+
+note bottom of VistaJavaFX: Ventana GUI\ncon cartas dibujadas
+
+@endum

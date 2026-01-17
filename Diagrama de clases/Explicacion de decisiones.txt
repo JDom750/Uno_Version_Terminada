@@ -1,0 +1,40 @@
+
+Esta es una excelente estrategia. Para presentar un proyecto de este tipo, no solo importa que funcione, sino demostrar que entendés por qué tomaste ciertas decisiones de diseño.
+Aquí tienes el guion para explicar el diagrama y la justificación técnica "a prueba de balas" para la consola simulada.
+1. Cómo explicar el Diagrama de Clases (El Guion)
+Cuando presentes el diagrama, no leas las clases una por una. Contá una historia sobre cómo viajan los datos. Usá este orden:
+A. El Núcleo (Modelo / Servidor)
+"Profesor, el corazón del sistema es la clase Partida. Esta clase reside en el Servidor y es la única que tiene la 'verdad absoluta' del estado del juego."
+Puntos clave:
+Implementa IPartidaRemota: Esto es lo que permite que sea invocada a través de la red (RMI).
+Extiende ObservableRemoto: Nos permite implementar el patrón Observer Distribuido. Cuando algo cambia (alguien tira una carta), Partida notifica a todos los observadores conectados.
+Contiene la lógica de negocio: Mazo, Jugadores y las reglas de validación (haRobadoEnTurnoActual).
+B. El Puente (Controlador / Cliente)
+"Del lado del cliente, tenemos el ControladorUNO. Esta clase actúa como un intermediario (Patrón Adapter/Bridge)."
+Puntos clave:
+Implementa IControladorRemoto: Para recibir los "callbacks" o notificaciones del servidor.
+Seguridad: Aquí implementamos la validación esMiTurno(). El controlador protege al servidor filtrando peticiones inválidas antes de que salgan a la red.
+C. La Interfaz (Vistas / Cliente)
+"Finalmente, tenemos las Vistas. Lo importante aquí es el desacople gracias a la interfaz VistaObserver."
+Puntos clave:
+Polimorfismo: Al controlador no le importa si la vista es gráfica (VistaJavaFX) o de texto (VistaConsola). Solo sabe que puede llamar a actualizar() y mostrarMensaje().
+Esto nos permite tener múltiples tipos de clientes jugando en la misma partida sin cambiar el código del modelo.
+2. Justificación Técnica: ¿Por qué una "Consola Falsa"?
+Si el profesor te pregunta: "¿Por qué no usaste System.in y Scanner en una consola normal? ¿Por qué emulaste una terminal con JavaFX?"
+Tu respuesta debe ser técnica y segura. No digas "era más fácil". Decí esto:
+"Fue una decisión de arquitectura basada en la naturaleza asíncrona de los sistemas distribuidos."
+Aquí tenés los 3 argumentos técnicos para defenderlo:
+Argumento 1: Bloqueo de Hilos (Blocking I/O vs Event Driven)
+"En una consola estándar de Java, cuando hacemos scanner.nextLine(), el hilo principal se bloquea por completo esperando que el usuario escriba.
+En un juego multijugador en tiempo real, esto es fatal. Si el servidor manda un evento urgente (ej: 'El jugador anterior ganó' o 'Te quedan 10 segundos'), la consola no podría mostrarlo porque está 'congelada' esperando el Enter del usuario.
+Al usar JavaFX simulando una consola, pasamos a un modelo Orientado a Eventos (Event-Driven). La interfaz siempre está viva y receptiva para mostrar mensajes del servidor, independientemente de si el usuario está escribiendo o no."
+Argumento 2: Concurrencia y Race Conditions
+"El patrón Observer de RMI ejecuta el método actualizar() en un hilo de red secundario.
+Si intentáramos escribir en System.out desde el hilo de RMI mientras el hilo principal está leyendo de System.in, tendríamos una condición de carrera (race condition) en el buffer de entrada/salida. Los mensajes del juego se mezclarían con lo que el usuario está escribiendo, rompiendo la interfaz.
+Con nuestra implementación, usamos Platform.runLater() para encolar las actualizaciones de manera segura en el hilo de la interfaz, manteniendo la integridad visual."
+Argumento 3: Consistencia en la Arquitectura (Clean Architecture)
+"Queríamos mantener una arquitectura MVC pura y consistente.
+Todas nuestras vistas (VistaJavaFX, VistaLogin, VistaConsola) heredan de Application y gestionan su ciclo de vida de la misma manera.
+Hacer una excepción para la consola implicaba crear un 'loop infinito' (while(true)) que rompía el patrón de inversión de control que usa el resto de la aplicación. Al emularla, mantenemos el código del Launcher y del Controlador uniforme para todos los tipos de vista."
+Resumen para el profesor ("El Elevator Pitch")
+"Profesor, emulamos la consola porque una consola real es sincrónica y bloqueante, lo cual es incompatible con la naturaleza asíncrona y reactiva de un juego distribuido por RMI. Necesitábamos que la interfaz pudiera 'escuchar' al servidor y al usuario al mismo tiempo sin bloquearse."

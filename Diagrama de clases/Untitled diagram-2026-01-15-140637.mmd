@@ -1,0 +1,136 @@
+classDiagram
+    %% --- LIBRERÍA RMIMVC ---
+    class ObservableRemoto {<<abstract>>}
+    class IControladorRemoto {<<interface>>}
+    class IObservableRemoto {<<interface>>}
+
+    %% --- PAQUETE MODELO ---
+    class IPartidaRemota {
+        <<interface>>
+        +iniciarPartida()
+        +jugarCarta()
+        +robarCartaDelMazo()
+        +cambiarColorActual()
+        +pasarTurno()
+        +registrarJugador()
+        +desconectar()
+        +reiniciarPartida()
+    }
+
+    class Partida {
+        -turnoActual: int
+        -partidaEnCurso: boolean
+        -colorActual: Color
+        -estadoEsperandoColor: boolean
+        -haRobadoEnTurnoActual: boolean
+        +iniciarPartidaInterna()
+        -avanzarTurnoInterno()
+        -manejarCartaEspecial()
+    }
+
+    class Mazo {
+        -mazo: Stack~Carta~
+        -descartes: List~Carta~
+        +barajar()
+        +robarCarta()
+        +descartar()
+    }
+
+    class Jugador {
+        -nombre: String
+        -cartas: List~Carta~
+        +tomarCarta()
+        +jugarCarta()
+        +vaciarMano()
+    }
+
+    class Carta {
+        -color: Color
+        -valor: Numero
+    }
+
+    class Evento {
+        -tipo: String
+        -datos: Object
+    }
+
+    class Color {
+        <<enumeration>>
+        ROJO, AZUL, VERDE, AMARILLO, SIN_COLOR
+    }
+
+    class Numero {
+        <<enumeration>>
+        CERO..NUEVE, MASDOS, SALTARSE, CAMBIOSENTIDO, CAMBIOCOLOR, MASCUATRO
+    }
+
+    %% --- PAQUETE CONTROLADOR ---
+    class ControladorUNO {
+        -nombreLocal: String
+        +actualizar(observable, evento)
+        -esMiTurno(): boolean
+        +jugarCarta()
+        +robarCarta()
+        +pasarTurno()
+    }
+
+    class VistaObserver {
+        <<interface>>
+        +actualizar()
+        +mostrarMensaje(titulo, mensaje)
+    }
+
+    %% --- PAQUETE VISTA ---
+    class VistaJavaFX {
+        -dialogAbierto: boolean
+        -yaRobe: boolean
+        +start()
+        +actualizar()
+        -pedirColor()
+    }
+
+    class VistaConsola {
+        -estadoActual: EstadoConsola
+        +procesarEntrada()
+        +actualizar()
+    }
+
+    class VistaEsperaJavaFX {
+        +mostrar()
+        +agregarJugador()
+        +cerrar()
+    }
+
+    class VistaLoginJavaFX {
+        +start()
+    }
+
+    %% --- RELACIONES MODELO ---
+    IObservableRemoto <|-- IPartidaRemota
+    ObservableRemoto <|-- Partida
+    IPartidaRemota <|.. Partida
+    
+    Partida "1" *-- "1" Mazo : contiene
+    Partida "1" *-- "2..10" Jugador : gestiona
+    Mazo "1" *-- "*" Carta : contiene
+    Jugador "1" *-- "*" Carta : posee en mano
+    Carta --> Color
+    Carta --> Numero
+    Partida ..> Evento : notifica
+
+    %% --- RELACIONES CONTROLADOR ---
+    IControladorRemoto <|.. ControladorUNO
+    ControladorUNO "1" --> "1" IPartidaRemota : invoca (RMI)
+    ControladorUNO "1" o-- "*" VistaObserver : notifica
+
+    %% --- RELACIONES VISTA ---
+    VistaObserver <|.. VistaJavaFX
+    VistaObserver <|.. VistaConsola
+    
+    VistaJavaFX --> ControladorUNO : envía acciones
+    VistaConsola --> ControladorUNO : envía acciones
+    VistaEsperaJavaFX --> ControladorUNO : envía acciones
+    VistaLoginJavaFX --> ControladorUNO : envía acciones
+    
+    ControladorUNO --> VistaEsperaJavaFX : controla cierre
+    
