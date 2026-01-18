@@ -122,6 +122,34 @@ public class ControladorUNO implements IControladorRemoto {
                     //notificarVistas(); --->Lo eliminamos para evitar un doble print, solo lo va a imprimir despues del CAMBIO_TURNO
                     break;
 
+                case "CAMBIO_COLOR":
+                    // CORRECCIÓN 1: No actualizamos la vista completa.
+                    // El evento CAMBIO_TURNO viene inmediatamente después y traerá el color nuevo.
+                    // Opcional: Mandar mensajito de texto si querés.
+                    notificarMensaje("Juego", "El color ha cambiado a " + e.getDatos());
+                    break;
+//                case "JUGAR_CARTA":
+//                    // Solo avisamos qué pasó, pero NO redibujamos la mesa entera todavía.
+//                    // La mesa se redibujará cuando cambie el turno (que pasa casi al mismo tiempo).
+//                    Carta c = (Carta) e.getDatos();
+//                    notificarMensaje("Juego", "Se jugó: " + c);
+//                    break;
+                case "JUGAR_CARTA":
+                    // CORRECCIÓN 2: Este evento suele venir junto con CAMBIO_TURNO.
+                    // Si actualizamos acá, vemos la carta nueva.
+                    // Si actualizamos en CAMBIO_TURNO, vemos el jugador nuevo.
+                    // Lo mejor es dejar este activo y silenciar el otro, o viceversa.
+                    // Pero como JUGAR_CARTA es informativo, dejemos que actualice.
+                    //notificarVistas();
+                    //Carta c = (Carta) e.getDatos();
+                    //notificarMensaje("Juego", "Se jugó: " + c);
+                    break;
+
+                case "CAMBIO_TURNO":
+                    // Este es el evento más importante. SIEMPRE actualizamos aquí.
+                    notificarVistas();
+                    break;
+
                 case "UNO_GRITADO":
                     // Caso especial: Solo mostramos mensaje, NO actualizamos la mesa completa todavía
                     // (para evitar parpadeos, ya que enseguida llega el evento de carta jugada)
@@ -139,6 +167,11 @@ public class ControladorUNO implements IControladorRemoto {
                     String seFue = (String) e.getDatos();
                     notificarMensaje("Información", "El jugador " + seFue + " se ha desconectado.");
                     break;
+//                case "ROBAR_CARTA":
+//                case "ROBAR_CARTAS":
+//                    // Estos sí conviene actualizarlos para ver que aumentó el nro de cartas
+//                    notificarVistas();
+//                    break;
 
                 default:
                     // Para cualquier otro evento (Turno, Carta Jugada, Robar), refrescamos la UI
