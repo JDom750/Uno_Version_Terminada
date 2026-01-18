@@ -252,6 +252,11 @@ public class VistaJavaFX implements VistaObserver {
                     return;
                 }
 
+                // --- CORRECCIÓN AQUÍ: REACTIVAR LA MANO ---
+                // Si llegamos acá, el juego está en curso. Aseguramos que la mano esté habilitada.
+                contenedorMano.setDisable(false);
+                // ------------------------------------------
+
                 if (esMiTurno) {
                     lblEstadoJuego.setText("¡ES TU TURNO!");
                     lblEstadoJuego.setTextFill(javafx.scene.paint.Color.YELLOW);

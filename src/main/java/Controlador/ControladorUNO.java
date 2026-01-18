@@ -4,6 +4,8 @@ import Modelo.*;
 import Vista.VistaEsperaJavaFX;
 import ar.edu.unlu.rmimvc.cliente.IControladorRemoto;
 import ar.edu.unlu.rmimvc.observer.IObservableRemoto;
+
+import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.rmi.RemoteException;
 import java.util.List;
@@ -105,6 +107,10 @@ public class ControladorUNO implements IControladorRemoto {
                     if (vistaEspera != null) {
                         vistaEspera.agregarJugador((String) e.getDatos());
                     }
+                    // 2. CORRECCIÓN LOBBY MUDO:
+                    // Avisamos a todas las vistas (incluida la consola) que entró alguien.
+                    // Usamos notificarMensaje para que salga como texto/popup y no redibuje todo.
+                    notificarMensaje("Lobby", "El jugador " + e.getDatos() + " se ha unido a la sala.");
                     break;
 
                 case "INICIO_PARTIDA":
@@ -113,7 +119,7 @@ public class ControladorUNO implements IControladorRemoto {
                         vistaEspera.cerrar();
                         vistaEspera = null; // Ya no la necesitamos
                     }
-                    notificarVistas();
+                    //notificarVistas(); --->Lo eliminamos para evitar un doble print, solo lo va a imprimir despues del CAMBIO_TURNO
                     break;
 
                 case "UNO_GRITADO":
@@ -274,7 +280,13 @@ public class ControladorUNO implements IControladorRemoto {
         try {
             partida.reiniciarPartida();
         } catch (Exception e) {
-            notificarMensaje("Error", "No se pudo reiniciar: " + e.getMessage());
+            // CORRECCIÓN: Si el error es porque ya arrancó, lo ignoramos (es éxito para nosotros)
+            if (e.getMessage() != null && e.getMessage().contains("curso")) {
+                // No hacemos nada, esperamos el evento INICIO_PARTIDA que debe estar por llegar
+                System.out.println("La partida ya fue reiniciada por otro jugador.");
+            } else {
+                notificarMensaje("Error", "No se pudo reiniciar: " + e.getMessage());
+            }
         }
     }
 
@@ -364,6 +376,24 @@ public class ControladorUNO implements IControladorRemoto {
             return partida.obtenerRanking();
         } catch (RemoteException e) {
             return List.of("Error al obtener ranking");
+        }
+    }
+
+    /**
+     * Obtiene solo los nombres de los jugadores conectados.
+     * Ideal para la Sala de Espera (evita acoplar la Vista con el Modelo).
+     */
+    public List<String> obtenerNombresJugadores() {
+        try {
+            List<Jugador> objetosJugador = partida.getJugadores();
+            List<String> nombres = new ArrayList<>();
+            for (Jugador j : objetosJugador) {
+                nombres.add(j.getNombre());
+            }
+            return nombres;
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return new ArrayList<>(); // Retorna lista vacía en caso de error
         }
     }
 }

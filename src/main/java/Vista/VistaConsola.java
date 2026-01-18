@@ -19,19 +19,18 @@ import java.util.List;
 /**
  * Vista de Consola "Falsa" (Simulada con JavaFX).
  * <p>
- * Provee una interfaz de texto retro (tipo terminal) para jugar UNO mediante comandos escritos.
- * Implementa {@link VistaObserver} para reaccionar a los eventos del juego.
+ * Versión Final: Incluye Ranking, Reconexión y Gestión de Lobby.
  */
 public class VistaConsola implements VistaObserver {
 
     private final ControladorUNO controlador;
     private Stage stage;
 
-    // Componentes de la interfaz simulada
+    // Componentes visuales
     private TextArea outputArea;
     private TextField inputField;
 
-    // Agregamos el estado FIN_JUEGO para manejar el ciclo de reinicio
+    // Estados
     private enum EstadoConsola { LOGIN, ESPERA, JUEGO, ELIGIENDO_COLOR, FIN_JUEGO }
     private EstadoConsola estadoActual = EstadoConsola.LOGIN;
 
@@ -42,9 +41,6 @@ public class VistaConsola implements VistaObserver {
         controlador.registrarVista(this);
     }
 
-    /**
-     * Inicia la ventana de la terminal.
-     */
     public void start(Stage stage) {
         this.stage = stage;
         stage.setTitle("UNO - Terminal Mode");
@@ -74,13 +70,13 @@ public class VistaConsola implements VistaObserver {
         stage.setScene(scene);
         stage.show();
 
-        imprimir(">>> SISTEMA UNO INICIADO v1.0");
+        imprimir(">>> SISTEMA UNO INICIADO v2.0");
         imprimir(">>> Por favor, ingresá tu nombre para conectarte:");
         imprimir("------------------------------------------------");
         inputField.requestFocus();
     }
 
-    // ================= LÓGICA DE COMANDOS (PARSER) =================
+    // ================= LÓGICA DE COMANDOS =================
 
     private void procesarEntrada(String texto) {
         String cmd = texto.trim();
@@ -94,7 +90,14 @@ public class VistaConsola implements VistaObserver {
                     controlador.setNombreLocal(cmd);
                     controlador.registrarJugador(cmd);
                     estadoActual = EstadoConsola.ESPERA;
-                    imprimir(">>> Conectado. Esperando jugadores...");
+
+                    imprimir(">>> Conectado al Lobby.");
+
+                    // --- NUEVO: Mostrar quiénes están conectados ---
+                    List<String> actuales = controlador.obtenerNombresJugadores();
+                    imprimir(">>> Jugadores en sala: " + actuales);
+                    // -----------------------------------------------
+
                     imprimir(">>> Escribí 'START' para iniciar si hay suficientes jugadores.");
                 }
                 case ESPERA -> {
@@ -107,22 +110,24 @@ public class VistaConsola implements VistaObserver {
                 case JUEGO -> procesarComandoJuego(cmd);
                 case ELIGIENDO_COLOR -> procesarSeleccionColor(cmd);
 
-                // --- NUEVO CASO: FIN DEL JUEGO ---
+                // --- MODO FIN DE JUEGO (Replay Loop) ---
                 case FIN_JUEGO -> {
                     if (cmd.equalsIgnoreCase("REINICIAR") || cmd.equalsIgnoreCase("R")) {
                         controlador.solicitarReiniciarPartida();
+                        // Si falla, el controlador mandará mensaje de error.
+                        // Si funciona, llegará evento INICIO_PARTIDA y 'actualizar' cambiará el estado.
                     } else if (cmd.equalsIgnoreCase("SALIR") || cmd.equalsIgnoreCase("EXIT")) {
-                        // Importante: Avisar al servidor antes de cerrar
+                        // Desconexión limpia
                         controlador.cerrarCesion();
                         Platform.exit();
                         System.exit(0);
                     } else {
-                        imprimir("Comando inválido. Escribí 'REINICIAR' o 'SALIR'.");
+                        imprimir("Opción inválida. Escribí 'REINICIAR' o 'SALIR'.");
                     }
                 }
             }
         } catch (Exception e) {
-            imprimir("ERROR: " + e.getMessage());
+            imprimir("ERROR LOCAL: " + e.getMessage());
         }
     }
 
@@ -134,7 +139,7 @@ public class VistaConsola implements VistaObserver {
             switch (accion) {
                 case "JUGAR", "PLAY", "P" -> {
                     if (partes.length < 2) {
-                        imprimir("Uso: JUGAR <numero_indice> (Ej: JUGAR 0)");
+                        imprimir("Uso: JUGAR <numero_indice>");
                         return;
                     }
                     int idx = Integer.parseInt(partes[1]);
@@ -142,9 +147,8 @@ public class VistaConsola implements VistaObserver {
                 }
                 case "ROBAR", "DRAW", "R" -> controlador.robarCarta();
                 case "PASAR", "PASS" -> controlador.pasarTurno();
-                case "AYUDA", "HELP", "?" -> mostrarAyuda();
                 case "MANO", "HAND" -> mostrarMano();
-                // Comandos ocultos para salir en medio del juego
+                case "AYUDA", "HELP", "?" -> mostrarAyuda();
                 case "SALIR", "EXIT" -> {
                     controlador.cerrarCesion();
                     Platform.exit();
@@ -155,7 +159,7 @@ public class VistaConsola implements VistaObserver {
         } catch (NumberFormatException e) {
             imprimir("Error: El índice debe ser un número.");
         } catch (Exception e) {
-            imprimir("Error del servidor: " + e.getMessage());
+            imprimir("Error: " + e.getMessage());
         }
     }
 
@@ -182,35 +186,43 @@ public class VistaConsola implements VistaObserver {
     }
 
     private void mostrarAyuda() {
-        imprimir("--- COMANDOS DISPONIBLES ---");
-        imprimir(" JUGAR <n> : Tira la carta en la posición n (0, 1, 2...)");
-        imprimir(" ROBAR     : Agarra una carta del mazo");
-        imprimir(" PASAR     : Pasa el turno (si ya robaste)");
-        imprimir(" MANO      : Muestra tus cartas de nuevo");
-        imprimir(" SALIR     : Abandona la partida");
+        imprimir("--- COMANDOS ---");
+        imprimir(" JUGAR <n> : Tira carta n");
+        imprimir(" ROBAR     : Toma carta");
+        imprimir(" PASAR     : Pasa turno (tras robar)");
+        imprimir(" MANO      : Ver cartas");
+        imprimir(" SALIR     : Desconectar");
     }
 
-    // ================= ACTUALIZACIONES DEL SERVIDOR =================
+    // ================= ACTUALIZACIONES =================
 
     @Override
     public void actualizar() {
         Platform.runLater(() -> {
             try {
+                // 1. ESCUDO DE LOGIN (Esto es lo que faltaba)
+                // Si el usuario todavía está escribiendo su nombre, ignoramos cualquier evento del servidor.
+                if (estadoActual == EstadoConsola.LOGIN) return;
+
+                // 2. Si la partida NO está en curso...
                 if (!controlador.isPartidaEnCurso()) {
-                    if (estadoActual == EstadoConsola.LOGIN) return;
+                    // Si estoy en espera, me quedo tranquilo (el controlador actualiza la lista interna si hace falta)
+                    // Si estaba jugando y la partida se cortó (ej. todos se desconectaron), no hacemos nada especial aquí.
                     return;
                 }
 
-                // Si la partida arrancó (o se reinició) y yo no estaba en modo juego:
+                // 3. Transición Automática (Inicio o Reinicio)
+                // Si la partida SÍ está en curso, pero yo estoy en modo "Espera" o "Fin de Juego"...
                 if (estadoActual == EstadoConsola.ESPERA || estadoActual == EstadoConsola.FIN_JUEGO) {
-                    estadoActual = EstadoConsola.JUEGO;
-                    imprimir("\n>>> ¡LA PARTIDA HA COMENZADO! <<<\n");
+                    estadoActual = EstadoConsola.JUEGO; // ¡Fuerzo el estado a JUEGO!
+                    imprimir("\n>>> ¡LA PARTIDA HA COMENZADO (O REINICIADO)! <<<\n");
                 }
 
+                // 4. Si llegué acá, es porque estoy jugando. Imprimo la mesa.
                 imprimirEstadoJuego();
 
             } catch (Exception e) {
-                // Manejo silencioso
+                // Manejo silencioso de errores de UI
             }
         });
     }
@@ -237,7 +249,7 @@ public class VistaConsola implements VistaObserver {
 
         if (soyYo && controlador.isEstadoEsperandoColor()) {
             estadoActual = EstadoConsola.ELIGIENDO_COLOR;
-            imprimir(">>> ¡COMODÍN JUGADO! Escribí el color (ROJO, AZUL, VERDE, AMARILLO):");
+            imprimir(">>> ¡COMODÍN! Escribí el color (ROJO, AZUL, VERDE, AMARILLO):");
         }
     }
 
@@ -256,14 +268,29 @@ public class VistaConsola implements VistaObserver {
     @Override
     public void mostrarMensaje(String titulo, String mensaje) {
         Platform.runLater(() -> {
-            imprimir("\n************\n" + titulo + ": " + mensaje + "\n************\n");
 
-            // DETECTAR FIN DEL JUEGO PARA CAMBIAR DE ESTADO
+            // --- MOSTRAR RANKING AL FINALIZAR ---
             if (titulo.equals("FIN DEL JUEGO")) {
+                imprimir("\n*********************************");
+                imprimir("       " + titulo + ": " + mensaje);
+                imprimir("*********************************");
+
+                // Pedimos el Ranking Top 5
+                List<String> top5 = controlador.getRankingTop5();
+                imprimir("\n--- 🏆 TOP 5 MEJORES JUGADORES 🏆 ---");
+                for (String linea : top5) {
+                    imprimir(" " + linea);
+                }
+                imprimir("---------------------------------------");
+
                 estadoActual = EstadoConsola.FIN_JUEGO;
-                imprimir(">>> ¿Qué querés hacer?");
+                imprimir("\n>>> ¿Qué querés hacer?");
                 imprimir(">>> Escribí 'REINICIAR' para jugar otra vez.");
                 imprimir(">>> Escribí 'SALIR' para cerrar.");
+            }
+            else {
+                // Mensajes normales (UNO, Avisos)
+                imprimir("\n*** " + titulo + ": " + mensaje + " ***\n");
             }
         });
     }

@@ -463,8 +463,15 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
     // MÉTODOS DE LA SALA DE ESPERA (LOBBY)
     //-------------------------------------------------------------------------
 
-    public synchronized void registrarJugador(String nombre) {
-        if (partidaEnCurso) return; // No se puede entrar si ya arrancó
+    public synchronized void registrarJugador(String nombre) throws RemoteException {
+        if (partidaEnCurso) return;
+
+        // --- VALIDACIÓN DE LÍMITE ---
+        if (jugadores.size() >= MAX_JUGADORES) {
+            throw new IllegalStateException("La sala está llena (Máx " + MAX_JUGADORES + ")");
+        }
+        // ----------------------------
+
         jugadores.add(new Jugador(nombre));
         notificarEvento(new Evento("JUGADOR_REGISTRADO", nombre));
     }
@@ -490,6 +497,11 @@ public class Partida extends ObservableRemoto implements IPartidaRemota, Seriali
             direccionNormal = true;
             estadoEsperandoColor = false;
             indiceJugadorUltimaJugada = -1;
+
+            // --- CORRECCIÓN CRÍTICA ---
+            haRobadoEnTurnoActual = false; // <--- permite reiniciar partidas sin errores
+            // -------------------------
+
 
             // Reiniciar y mezclar mazo
             mazo.reiniciar();

@@ -12,6 +12,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.application.Platform;
 
+import java.util.List;
+
 /**
  * Vista de Sala de Espera (Lobby).
  * <p>
@@ -45,6 +47,7 @@ public class VistaEsperaJavaFX {
      * Construye y muestra la interfaz gráfica del Lobby.
      * @param stage El escenario donde se dibujará la escena.
      */
+    /** ⬇ Se llama cuando se abre la ventana */
     public void mostrar(Stage stage) {
         this.stage = stage;
 
@@ -54,15 +57,31 @@ public class VistaEsperaJavaFX {
         Label subtitulo = new Label("La partida comenzará automáticamente cuando haya suficientes jugadores.");
         subtitulo.setStyle("-fx-font-size: 12px;");
 
-        // Lista visual vinculada a los datos
+        // --- CORRECCIÓN MVC: Carga inicial de datos ---
+        // 1. Pedimos al controlador la lista de NOMBRES (Strings).
+        //    (Así la vista no conoce la clase Jugador del modelo).
+        List<String> nombresActuales = controlador.obtenerNombresJugadores();
+
+        // 2. Limpiamos la lista local y agregamos los que ya estaban en el servidor.
+        jugadoresList.clear();
+        if (nombresActuales != null) {
+            jugadoresList.addAll(nombresActuales);
+        }
+        // ----------------------------------------------
+
         ListView<String> listaJugadores = new ListView<>(jugadoresList);
         listaJugadores.setPrefHeight(200);
 
-        // Botón de Inicio
         btnIniciar = new Button("Iniciar Partida");
-        btnIniciar.setDisable(true); // Nace desactivado (necesitamos min 2 jugadores)
 
-        // Acción: Pedir al controlador (y por ende al servidor) que arranque el juego
+        // 3. Validación Inicial del Botón:
+        //    Si al entrar ya hay 2 o más personas, habilitamos el botón inmediatamente.
+        if (jugadoresList.size() >= 2) {
+            btnIniciar.setDisable(false);
+        } else {
+            btnIniciar.setDisable(true);
+        }
+
         btnIniciar.setOnAction(e -> controlador.solicitarInicioPartida());
 
         VBox root = new VBox(15, titulo, subtitulo, listaJugadores, btnIniciar);
@@ -80,15 +99,18 @@ public class VistaEsperaJavaFX {
      * Actualiza la lista visual y verifica si ya se puede iniciar.
      */
     public void agregarJugador(String nombre) {
-        // Verificamos duplicados visuales por seguridad
-        if (!jugadoresList.contains(nombre)) {
-            jugadoresList.add(nombre);
-        }
-        // Regla de Negocio UI: Solo habilitar el botón si hay al menos 2 jugadores conectados.
-        if (jugadoresList.size() >= 2) {
-            btnIniciar.setDisable(false);
-        }
+        Platform.runLater(() -> { //Hay que asegurar que corra en el hilo grafico
+            // Verificamos duplicados visuales por seguridad
+            if (!jugadoresList.contains(nombre)) {
+                jugadoresList.add(nombre);
+            }
+            // Regla de Negocio UI: Solo habilitar el botón si hay al menos 2 jugadores conectados.
+            if (jugadoresList.size() >= 2) {
+                btnIniciar.setDisable(false);
+            }
+        });
     }
+
 
     /**
      * Método invocado por el Controlador cuando el Servidor notifica "INICIO_PARTIDA".
